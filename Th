@@ -1,0 +1,157 @@
+import requests
+import random
+import time
+import os
+import sys
+
+# --- Configuration & Styling ---
+COUNTRIES = {
+    "All Countries (Random)": "0",
+    "Iraq": "964",
+    "USA": "1",
+    "UK": "44",
+    "Saudi Arabia": "966",
+    "Egypt": "20",
+    "UAE": "971",
+    "Kuwait": "965",
+    "Jordan": "962",
+    "Qatar": "974",
+    "Oman": "968",
+    "Bahrain": "973",
+    "Turkey": "90",
+    "Germany": "49",
+    "France": "33"
+}
+
+BLUE = "\033[1;36m"
+GREEN = "\033[1;32m"
+RED = "\033[1;31m"
+RESET = "\033[1;37m"
+
+LOGO = f'''
+{BLUE}
+        ╔══════════════════════════════════════╗
+        ║   Twitter (X) Global Checker 2025    ║
+        ║   Updated: Support All Countries     ║
+        ║   Fast & Reliable (No API Required)  ║
+        ╚══════════════════════════════════════╝
+{RESET}
+'''
+
+# --- Functions ---
+
+def clear_screen():
+    os.system('clear' if os.name == 'posix' else 'cls')
+
+def generate_combo():
+    clear_screen()
+    print(LOGO)
+    print("Select a country to generate numbers:")
+    country_list = list(COUNTRIES.keys())
+    for i, country in enumerate(country_list, 1):
+        print(f"[{i}] {country} (+{COUNTRIES[country]})")
+    
+    try:
+        choice = int(input(f"\n{BLUE}Choice Number: {RESET}"))
+        if choice < 1 or choice > len(country_list):
+            print(f"{RED}Invalid choice. Defaulting to Iraq.{RESET}")
+            selected_code = "964"
+        else:
+            selected_country = country_list[choice-1]
+            selected_code = COUNTRIES[selected_country]
+    except ValueError:
+        print(f"{RED}Invalid input. Defaulting to Iraq.{RESET}")
+        selected_code = "964"
+
+    try:
+        count = int(input(f"{BLUE}How many numbers to generate? (e.g., 500): {RESET}"))
+    except ValueError:
+        count = 100
+
+    with open('test.txt', 'w') as f:
+        for _ in range(count):
+            if selected_code == "0":
+                # Randomly pick a country code for each number
+                code = random.choice(list(COUNTRIES.values())[1:])
+            else:
+                code = selected_code
+            
+            # Generate a random subscriber number (usually 7-10 digits)
+            subscriber = "".join([str(random.randint(0, 9)) for _ in range(random.randint(7, 9))])
+            full_num = f"{code}{subscriber}"
+            f.write(f"{full_num}:{full_num}\n")
+    
+    print(f"\n{GREEN}[!] Generated {count} numbers in 'test.txt'{RESET}")
+    time.sleep(1)
+
+def check_accounts():
+    if not os.path.exists('test.txt'):
+        print(f"{RED}Error: 'test.txt' not found. Generate numbers first.{RESET}")
+        return
+
+    with open('test.txt', 'r') as f:
+        lines = f.readlines()
+
+    hit = 0
+    bad = 0
+    
+    print(f"\n{BLUE}[!] Starting Global Checker...{RESET}")
+    print(f"{BLUE}[!] Results will be saved to 'Goodtweter.txt'{RESET}\n")
+    
+    # Headers to mimic a real browser
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+    }
+
+    with open('Goodtweter.txt', 'a') as good_file:
+        for line in lines:
+            try:
+                username, password = line.strip().split(':')
+            except ValueError:
+                continue
+
+            url = f"https://x.com/{username}"
+            
+            try:
+                # Use a session for better performance
+                with requests.Session() as session:
+                    response = session.get(url, headers=headers, timeout=10)
+                    
+                    # 404 means the user definitely doesn't exist
+                    # 200 means the page loaded, but we need to check if it's a "Not Found" page
+                    exists = False
+                    if response.status_code == 200:
+                        if "This account doesn’t exist" not in response.text:
+                            exists = True
+                    
+                    if exists:
+                        hit += 1
+                        print(f"{GREEN}[+] HIT: @{username} | Password: {password}{RESET}")
+                        good_file.write(f"{username}:{password}\n")
+                        good_file.flush()
+                    else:
+                        bad += 1
+                        print(f"{RED}[-] BAD: @{username}{RESET}")
+
+            except requests.exceptions.RequestException as e:
+                print(f"{RED}[!] Network Error for @{username}: {e}{RESET}")
+                time.sleep(5) # Wait on network error
+            
+            # Delay to prevent rate limiting (X is strict)
+            time.sleep(1.2)
+
+    print(f"\n{BLUE}══════════════════════════════════════{RESET}")
+    print(f"{GREEN}Checking Complete!{RESET}")
+    print(f"{GREEN}Total Hits: {hit}{RESET}")
+    print(f"{RED}Total Bad: {bad}{RESET}")
+    print(f"{BLUE}══════════════════════════════════════{RESET}")
+
+if __name__ == "__main__":
+    try:
+        generate_combo()
+        check_accounts()
+    except KeyboardInterrupt:
+        print(f"\n{RED}[!] Process stopped by user.{RESET}")
+        sys.exit()
